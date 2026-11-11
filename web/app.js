@@ -204,7 +204,7 @@ function loadP2PMediaDirect(media) {
   try {
     S.p2pMedia.send(JSON.stringify({
       id: reqId,
-      type: "range",
+      type: "blob",
       start: 0,
       end: -1,
     }));
@@ -302,6 +302,9 @@ async function connectP2P(room) {
           toast("⚡ Прямое P2P соединение установлено!");
           send({ type: "name", name: S.name });
           ping();
+          setTimeout(ping, 100);
+          setTimeout(ping, 250);
+          setTimeout(ping, 500);
         };
         ch.onmessage = (ev) => {
           try { onMessage(JSON.parse(ev.data)); } catch (_) {}
@@ -402,7 +405,15 @@ function connect() {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const ws = new WebSocket(`${proto}://${location.host}/ws?name=${encodeURIComponent(S.name)}`);
   S.ws = ws;
-  ws.onopen = () => { S.reconnectDelay = 500; S.bestRtt = Infinity; hideStatus("conn"); ping(); };
+  ws.onopen = () => {
+    S.reconnectDelay = 500;
+    S.bestRtt = Infinity;
+    hideStatus("conn");
+    ping();
+    setTimeout(ping, 100);
+    setTimeout(ping, 250);
+    setTimeout(ping, 500);
+  };
   ws.onmessage = (e) => onMessage(JSON.parse(e.data));
   ws.onclose = () => {
     if (S.ws !== ws) return;
@@ -413,7 +424,7 @@ function connect() {
   };
 }
 function ping() { send({ type: "ping", t: Date.now() }); }
-setInterval(ping, 5000);
+setInterval(ping, 2000);
 
 function onPong(m) {
   const now = Date.now(), rtt = now - m.t;
@@ -539,25 +550,25 @@ function sync(force = false) {
   if (st.paused || st.waiting || target >= dur - 0.1) {
     if (!video.paused) video.pause();
     video.playbackRate = st.rate;
-    if (Math.abs(drift) > 0.25 && !video.seeking) video.currentTime = target;
+    if (Math.abs(drift) > 0.06 && !video.seeking) video.currentTime = target;
     $("tapJoin").classList.add("hidden");
     return;
   }
-  const limit = force ? 0.3 : 1.2;
-  if (Math.abs(drift) > limit && (force || now - S.hardSeekAt > 2000)) {
+  const limit = force ? 0.12 : 0.35;
+  if (Math.abs(drift) > limit && (force || now - S.hardSeekAt > 600)) {
     video.currentTime = target;
     S.hardSeekAt = now;
     video.playbackRate = st.rate;
-  } else if (Math.abs(drift) > 0.05) {
-    // Small drift: nudge the speed by up to ±8% - invisible and seamless.
-    const k = Math.max(-0.08, Math.min(0.08, drift * 0.5));
+  } else if (Math.abs(drift) > 0.03) {
+    // Small drift: nudge the speed by up to ±12% - quick and imperceptible.
+    const k = Math.max(-0.12, Math.min(0.12, drift * 0.8));
     video.playbackRate = st.rate * (1 - k);
   } else {
     video.playbackRate = st.rate;
   }
   if (video.paused && !S.autoplayBlocked) play();
 }
-setInterval(() => sync(false), 400);
+setInterval(() => sync(false), 120);
 
 function bufferAhead() {
   const t = video.currentTime, b = video.buffered;
@@ -574,12 +585,12 @@ function checkBuffering() {
   if (!st.paused && video.readyState > 0) {
     const nearEnd = isFinite(video.duration) && video.duration - video.currentTime < 3;
     stalled = S.reportedBuf
-      ? video.seeking || !(video.readyState >= 4 || bufferAhead() >= 4 || nearEnd)
-      : video.seeking || video.readyState < 3;
+      ? video.seeking || !(video.readyState >= 3 || bufferAhead() >= 1.0 || nearEnd)
+      : video.seeking || video.readyState < 2;
   }
   if (stalled) {
     if (!S.bufSince) S.bufSince = Date.now();
-    if (!S.reportedBuf && Date.now() - S.bufSince > 600) {
+    if (!S.reportedBuf && Date.now() - S.bufSince > 800) {
       S.reportedBuf = true; send({ type: "buffering", value: true });
     }
   } else {

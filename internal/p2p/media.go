@@ -17,7 +17,8 @@ import (
 
 const (
 	chunkSize       = 32 * 1024 // 32 KB per SCTP packet (guaranteed <= 65535 byte WebRTC limit)
-	maxRangeChunk   = 4 * 1024 * 1024 // 4 MB max chunk per Range request
+	maxRangeChunk   = 2 * 1024 * 1024 // 2 MB max chunk per Range request (prevents bufferbloat)
+	sctpBufferLimit = 128 * 1024      // 128 KB max in-flight SCTP buffer for ultra-low latency control packets
 	flagData  byte  = 0
 	flagDone  byte  = 1
 	flagError byte  = 2
@@ -115,7 +116,7 @@ func (h *MediaHandler) handleRequest(req MediaRequest) {
 		}()
 
 		switch req.Type {
-		case "range":
+		case "range", "blob":
 			h.serveRange(ctx, req)
 		case "subs":
 			h.serveSubs(ctx, req)
@@ -157,9 +158,9 @@ func (h *MediaHandler) serveRange(ctx context.Context, req MediaRequest) {
 		start = end
 	}
 
-	// Cap to maxRangeChunk only if a specific end offset was requested
-	// If req.End <= 0 (e.g. -1), stream the entire remaining file
-	if req.End > 0 && end-start+1 > maxRangeChunk {
+	// For Range streaming: cap to maxRangeChunk (2 MB) so single requests don't choke the connection.
+	// For Blob direct download (req.Type == "blob"): allow full file streaming.
+	if req.Type != "blob" && end-start+1 > maxRangeChunk {
 		end = start + maxRangeChunk - 1
 	}
 	length := end - start + 1
@@ -196,11 +197,11 @@ func (h *MediaHandler) serveRange(ctx context.Context, req MediaRequest) {
 		}
 
 		// Backpressure handling: wait if SCTP send buffer is high
-		for h.dc.BufferedAmount() > 1024*1024 {
+		for h.dc.BufferedAmount() > sctpBufferLimit {
 			select {
 			case <-ctx.Done():
 				return
-			case <-time.After(10 * time.Millisecond):
+			case <-time.After(5 * time.Millisecond):
 			}
 		}
 

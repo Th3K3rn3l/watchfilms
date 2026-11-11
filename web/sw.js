@@ -64,7 +64,11 @@ async function handleP2PVideo(request, clientId) {
     const m = /bytes=(\d+)-(\d*)/.exec(rangeHeader);
     if (m) {
       start = parseInt(m[1], 10);
-      if (m[2]) end = parseInt(m[2], 10);
+      if (m[2]) {
+        end = parseInt(m[2], 10);
+      } else {
+        end = start + 2 * 1024 * 1024 - 1; // 2 MB per range request
+      }
     }
   }
 
