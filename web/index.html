@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>WatchFilms</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="app" id="app">
+  <main class="stage" id="stage">
+    <video id="video" playsinline preload="auto"></video>
+
+    <header class="topbar">
+      <div class="brand"><span class="logo">●</span> WatchFilms</div>
+      <div class="title" id="title"></div>
+      <div class="top-actions">
+        <div class="peers" id="peers"></div>
+        <button class="btn ghost host-only" id="btnPick" title="Выбрать фильм">Фильм</button>
+        <button class="btn accent host-only" id="btnInvite" title="Ссылка для друга">Пригласить</button>
+      </div>
+    </header>
+
+    <section class="empty" id="empty">
+      <div class="empty-card">
+        <div class="empty-icon">🎞️</div>
+        <h1 class="host-only">Выберите фильм</h1>
+        <p class="host-only">Фильм останется у вас, другу ничего не нужно скачивать.<br>Отправьте ему ссылку, и смотрите вместе.</p>
+        <div class="row host-only">
+          <button class="btn accent big" id="btnPick2">Открыть фильм</button>
+          <button class="btn ghost big" id="btnInvite2">Ссылка для друга</button>
+        </div>
+        <h1 class="guest-only">Ждём фильм</h1>
+        <p class="guest-only">Хост выбирает фильм. Как только выберет, он появится здесь.</p>
+      </div>
+    </section>
+
+    <div class="center-status hidden" id="status">
+      <div class="spinner"></div>
+      <div id="statusText">Загрузка…</div>
+    </div>
+
+    <button class="tap-to-join hidden" id="tapJoin">▶ Нажмите, чтобы присоединиться</button>
+
+    <div class="reactions-layer" id="reactionsLayer"></div>
+    <div class="toasts" id="toasts"></div>
+
+    <div class="controls" id="controls">
+      <div class="seek" id="seek">
+        <div class="seek-track">
+          <div class="seek-buffer" id="seekBuffer"></div>
+          <div class="seek-progress" id="seekProgress"></div>
+          <div class="seek-thumb" id="seekThumb"></div>
+        </div>
+        <div class="seek-tip" id="seekTip">0:00</div>
+      </div>
+      <div class="controls-row">
+        <button class="icon" id="btnPlay" title="Пауза / воспроизведение (Пробел)"></button>
+        <button class="icon" id="btnBack" title="Назад 10 с (←)"></button>
+        <button class="icon" id="btnFwd" title="Вперёд 10 с (→)"></button>
+        <div class="volume">
+          <button class="icon" id="btnMute" title="Звук (M)"></button>
+          <input type="range" id="vol" min="0" max="1" step="0.01" value="1">
+        </div>
+        <div class="time"><span id="tCur">0:00</span> <span class="dim">/ <span id="tDur">0:00</span></span></div>
+        <div class="spacer"></div>
+        <div class="net dim" id="netInfo" title="Запас загруженного видео"></div>
+        <select id="subs" class="select" title="Субтитры"><option value="-1">Без субтитров</option></select>
+        <button class="icon" id="btnChat" title="Чат (C)"></button>
+        <button class="icon" id="btnFull" title="Полный экран (F)"></button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="side" id="side">
+    <div class="side-head">
+      <span>Чат</span>
+      <button class="link" id="btnRename" title="Сменить имя"></button>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="react-bar" id="reactBar"></div>
+    <form class="composer" id="composer" autocomplete="off">
+      <input id="msg" maxlength="1000" placeholder="Сообщение… (Enter)">
+      <button class="icon send" title="Отправить">➤</button>
+    </form>
+  </aside>
+</div>
+
+<dialog id="dlgName" class="dlg">
+  <form method="dialog" id="nameForm">
+    <h2>Как вас зовут?</h2>
+    <p class="dim">Имя увидит собеседник в чате.</p>
+    <input id="nameInput" maxlength="24" placeholder="Имя" required>
+    <button class="btn accent big wide">Войти в зал</button>
+  </form>
+</dialog>
+
+<dialog id="dlgInvite" class="dlg">
+  <h2>Ссылка для друга</h2>
+  <p class="dim" id="tunnelText">Открываю публичную ссылку…</p>
+  <div class="copy-row">
+    <input id="inviteUrl" readonly placeholder="подождите…">
+    <button class="btn accent" id="btnCopy">Копировать</button>
+  </div>
+  <div class="tunnel-controls">
+    <span id="tunnelProvider" class="tunnel-badge"></span>
+    <button class="btn ghost small" id="btnSwitchTunnel" title="Переключить сервис (Cloudflare ⇄ Pinggy), если у друга не открывается ссылка">Сменить сервис</button>
+  </div>
+  <details class="p2p-box" id="p2pBox">
+    <summary>⚡ P2P (Yandex Cloud Functions) — Blazing Fast</summary>
+    <p class="dim p2p-desc">Прямая передача видео P2P без промежуточных серверов на полной скорости вашего интернета.</p>
+    <div class="p2p-input-row">
+      <input id="p2pInput" placeholder="https://functions.yandexcloud.net/..." title="Адрес Yandex Cloud Function">
+      <button class="btn accent small" id="btnSaveP2P">Включить P2P</button>
+    </div>
+  </details>
+  <details class="lan">
+    <summary>Ссылки для локальной сети / общего VPN</summary>
+    <div id="lanList"></div>
+  </details>
+  <div class="row end"><button class="btn ghost" data-close>Закрыть</button></div>
+</dialog>
+
+<dialog id="dlgFiles" class="dlg wide-dlg">
+  <div class="fs-head">
+    <h2>Выбор фильма</h2>
+    <button class="btn ghost" data-close>✕</button>
+  </div>
+  <div class="fs-roots" id="fsRoots"></div>
+  <div class="fs-path"><button class="btn ghost small" id="fsUp">↑ Вверх</button><span id="fsPath"></span></div>
+  <div class="fs-list" id="fsList"></div>
+</dialog>
+
+<script src="/app.js"></script>
+</body>
+</html>
