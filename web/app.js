@@ -59,10 +59,15 @@ function swPost(msg, transfer) {
   }
 }
 
-const apiBase = location.pathname.replace(/\/+$/, "");
+const basePath = new URL(".", location.href).pathname.replace(/\/+$/, "");
+const sigParam = new URLSearchParams(location.search).get("signal");
+if (sigParam) {
+  try { localStorage.setItem("wf_signal_url", sigParam); } catch (_) {}
+}
 
 if ("serviceWorker" in navigator && !location.hostname.includes("functions.yandexcloud.net")) {
-  navigator.serviceWorker.register((apiBase || "") + "/sw.js").catch((err) => {
+  const swPath = new URL("sw.js", location.href).pathname;
+  navigator.serviceWorker.register(swPath).catch((err) => {
     console.warn("SW register:", err);
   });
   navigator.serviceWorker.addEventListener("message", (e) => {
@@ -209,6 +214,15 @@ function loadP2PMediaDirect(media) {
 }
 
 function getSignalURL(room, action) {
+  const signalParam = new URLSearchParams(location.search).get("signal") || localStorage.getItem("wf_signal_url");
+  if (signalParam) {
+    try {
+      const u = new URL(signalParam);
+      if (room) u.searchParams.set("room", room);
+      if (action) u.searchParams.set("action", action);
+      return u.toString();
+    } catch (_) {}
+  }
   if (location.hostname.includes("functions.yandexcloud.net")) {
     const u = new URL(location.origin + location.pathname);
     if (room) u.searchParams.set("room", room);
@@ -222,6 +236,10 @@ function getSignalURL(room, action) {
 }
 
 function postSignalURL() {
+  const signalParam = new URLSearchParams(location.search).get("signal") || localStorage.getItem("wf_signal_url");
+  if (signalParam) {
+    return signalParam;
+  }
   if (location.hostname.includes("functions.yandexcloud.net")) {
     return location.origin + location.pathname;
   }
@@ -471,7 +489,7 @@ function setMedia(media) {
         tr.src = URL.createObjectURL(blob);
       });
     } else {
-      tr.src = S.p2pMode ? `${apiBase}/p2p/subs/${s.id}.vtt` : `/api/subs/${media.id}/${s.id}.vtt`;
+      tr.src = S.p2pMode ? `${basePath}/p2p/subs/${s.id}.vtt` : `/api/subs/${media.id}/${s.id}.vtt`;
     }
     video.appendChild(tr);
     sel.add(new Option(s.label, String(i)));
@@ -482,7 +500,7 @@ function setMedia(media) {
 
   if (S.p2pMode) {
     if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      video.src = `${apiBase}/p2p/video`;
+      video.src = `${basePath}/p2p/video`;
       showStatus("load", "Загружаю видео…");
     } else {
       loadP2PMediaDirect(media);
@@ -934,6 +952,38 @@ if (btnSaveP2P) {
       btnSaveP2P.textContent = "Включить P2P";
     }
     setTimeout(() => { btnSaveP2P.disabled = false; }, 1500);
+  };
+}
+
+const btnSaveWeb = $("btnSaveWeb");
+const webInput = $("webInput");
+if (webInput) {
+  webInput.value = localStorage.getItem("wf_web_url") || "";
+}
+if (btnSaveWeb) {
+  btnSaveWeb.onclick = async () => {
+    const u = (webInput.value || "").trim();
+    localStorage.setItem("wf_web_url", u);
+    btnSaveWeb.disabled = true;
+    btnSaveWeb.textContent = "Сохранение…";
+    try {
+      const r = await fetch("/api/p2p/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ web: u }),
+      });
+      if (r.ok) {
+        toast("🚀 Ссылка GitHub Pages сохранена!");
+        btnSaveWeb.textContent = "Сохранено ✓";
+      } else {
+        toast("⚠ Ошибка обновления");
+        btnSaveWeb.textContent = "Сохранить";
+      }
+    } catch (err) {
+      toast("⚠ Ошибка сети: " + err);
+      btnSaveWeb.textContent = "Сохранить";
+    }
+    setTimeout(() => { btnSaveWeb.disabled = false; }, 1500);
   };
 }
 

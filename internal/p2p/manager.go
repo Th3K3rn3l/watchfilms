@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +31,7 @@ var DefaultSTUNServers = []string{
 type Config struct {
 	Room      *room.Room
 	SignalURL string
+	WebURL    string
 	Update    func(status, url, errText, provider string)
 }
 
@@ -244,9 +246,17 @@ func (m *Manager) runSession(ctx context.Context) error {
 
 	// Embed URL-safe base64 offer in the invite link hash!
 	encodedOffer := base64.RawURLEncoding.EncodeToString([]byte(normOffer))
-	inviteURL := fmt.Sprintf("%s/?room=%s#o=%s", m.sigClient.BaseURL, roomID, encodedOffer)
-	log.Printf("[p2p] комната %s создана! Ссылка для друга: %s", roomID, inviteURL)
-	m.cfg.Update("ready", inviteURL, "", "P2P (Yandex Cloud)")
+	baseURL := strings.TrimRight(m.cfg.WebURL, "/")
+	var inviteURL string
+	if baseURL != "" {
+		inviteURL = fmt.Sprintf("%s/?signal=%s&room=%s#o=%s", baseURL, url.QueryEscape(m.sigClient.BaseURL), roomID, encodedOffer)
+		log.Printf("[p2p] комната %s создана! Ссылка для друга (GitHub Pages): %s", roomID, inviteURL)
+		m.cfg.Update("ready", inviteURL, "", "P2P (GitHub Pages)")
+	} else {
+		inviteURL = fmt.Sprintf("%s/?room=%s#o=%s", m.sigClient.BaseURL, roomID, encodedOffer)
+		log.Printf("[p2p] комната %s создана! Ссылка для друга: %s", roomID, inviteURL)
+		m.cfg.Update("ready", inviteURL, "", "P2P (Yandex Cloud)")
+	}
 
 	// 5. Poll for Answer from Friend
 	answerSDP, err := m.sigClient.PollAnswer(ctx, roomID, 1*time.Second)
@@ -288,4 +298,14 @@ func (m *Manager) SetSignalURL(url string) error {
 		_ = m.pc.Close()
 	}
 	return nil
+}
+
+// SetWebURL updates the frontend web UI URL (e.g. GitHub Pages) at runtime.
+func (m *Manager) SetWebURL(webURL string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.cfg.WebURL = strings.TrimSpace(webURL)
+	if m.pc != nil {
+		_ = m.pc.Close()
+	}
 }

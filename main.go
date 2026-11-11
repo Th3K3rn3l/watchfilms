@@ -33,6 +33,7 @@ func main() {
 	tunnelMode := flag.String("tunnel", "auto", "способ создания ссылки: auto (Cloudflare -> Pinggy), cloudflare, pinggy, none")
 	ycfURL := flag.String("signal", os.Getenv("YCF_URL"), "URL Yandex Cloud Function для P2P соединения")
 	flag.StringVar(ycfURL, "ycf", os.Getenv("YCF_URL"), "алиас для -signal")
+	webURL := flag.String("web", os.Getenv("WEB_URL"), "URL GitHub Pages веб-интерфейса (например, https://<user>.github.io/watchfilms)")
 	useP2P := flag.Bool("p2p", true, "использовать P2P прямое соединение через WebRTC")
 	cfToken := flag.String("cf-token", os.Getenv("CLOUDFLARE_TUNNEL_TOKEN"), "токен Named Tunnel Cloudflare (если есть свой аккаунт/домен)")
 	cfDomain := flag.String("domain", "", "домен для Named Tunnel Cloudflare (например, kino.mysite.ru)")
@@ -87,6 +88,7 @@ func main() {
 		p2pMgr = p2p.NewManager(p2p.Config{
 			Room:      rm,
 			SignalURL: *ycfURL,
+			WebURL:    *webURL,
 			Update: func(status, url, msg, provider string) {
 				t := room.Tunnel{Status: status, Error: msg, Provider: provider, LAN: lan, URL: url}
 				if url != "" {
@@ -102,6 +104,11 @@ func main() {
 			if err := p2pMgr.SetSignalURL(newURL); err != nil {
 				return err
 			}
+			go p2pMgr.Run(ctx)
+			return nil
+		}
+		srv.SetP2PWeb = func(newWeb string) error {
+			p2pMgr.SetWebURL(newWeb)
 			go p2pMgr.Run(ctx)
 			return nil
 		}

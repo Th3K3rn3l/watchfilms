@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <title>WatchFilms</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎬</text></svg>">
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="app" id="app">
@@ -113,7 +113,15 @@
     <p class="dim p2p-desc">Прямая передача видео P2P без промежуточных серверов на полной скорости вашего интернета.</p>
     <div class="p2p-input-row">
       <input id="p2pInput" placeholder="https://functions.yandexcloud.net/..." title="Адрес Yandex Cloud Function">
-      <button class="btn accent small" id="btnSaveP2P">Включить P2P</button>
+      <button class="btn accent small" id="btnSaveP2P">Сохранить</button>
+    </div>
+  </details>
+  <details class="p2p-box" id="webBox">
+    <summary>🚀 GitHub Pages (мгновенный Range-стриминг)</summary>
+    <p class="dim p2p-desc">URL плеера на GitHub Pages для мгновенного старта фильма без ожидания полной загрузки.</p>
+    <div class="p2p-input-row">
+      <input id="webInput" placeholder="https://<user>.github.io/watchfilms" title="URL GitHub Pages">
+      <button class="btn accent small" id="btnSaveWeb">Сохранить</button>
     </div>
   </details>
   <details class="lan">
@@ -133,6 +141,6 @@
   <div class="fs-list" id="fsList"></div>
 </dialog>
 
-<script src="/app.js"></script>
+<script src="app.js"></script>
 </body>
 </html>

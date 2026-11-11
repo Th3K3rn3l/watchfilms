@@ -27,6 +27,7 @@ type Server struct {
 	web          fs.FS
 	SwitchTunnel func() (string, error)
 	SetP2PSignal func(string) error
+	SetP2PWeb    func(string) error
 }
 
 func token() string {
@@ -156,16 +157,25 @@ func (s *Server) Handler() http.Handler {
 		}
 		var body struct {
 			URL string `json:"url"`
+			Web string `json:"web"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if err := s.SetP2PSignal(body.URL); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
+		if body.Web != "" && s.SetP2PWeb != nil {
+			if err := s.SetP2PWeb(body.Web); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 		}
-		writeJSON(w, map[string]string{"status": "ok", "url": body.URL})
+		if body.URL != "" && s.SetP2PSignal != nil {
+			if err := s.SetP2PSignal(body.URL); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		writeJSON(w, map[string]string{"status": "ok", "url": body.URL, "web": body.Web})
 	}))
 	mux.HandleFunc("GET /ws", s.serveWS)
 	mux.Handle("GET /", static)
